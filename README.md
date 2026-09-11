@@ -51,6 +51,31 @@ The emulator image matters: use a **Google Play** system image, because those sh
 | `typed_via_keys` vs `injected` | **only key-tapped text went through the real IME** |
 | `expected` vs `value` | what the keyboard actually produced |
 
+### It works, and here is it proving the point
+
+First run of the workflow in this repo, against `duckduckgo.com` on Android 13 and 14:
+
+```json
+{ "step": "typed",
+  "keyboard_opened_on_tap": true,
+  "keyboard_mode": "geo",
+  "typed_via_keys": "ada lovelace",
+  "injected": "",
+  "expected": "ada lovelace",
+  "value": "Ada lovelace",
+  "matches": false }
+
+{ "finding": "THE KEYBOARD CHANGED THE TEXT",
+  "expected": "ada lovelace",
+  "produced": "Ada lovelace",
+  "note": "autocorrect / auto-capitalisation / predictive text —
+           an injected-text tool would never have seen this" }
+```
+
+Every character went through the keys (`injected` is empty), and Gboard capitalised the first letter.
+A tool that injects text returns `ada lovelace` and reports success. On a case-sensitive field, that
+difference is a bug your users hit and your test suite does not.
+
 A mismatch between `expected` and `value` is the point of the tool. In our own use it caught a signup
 form where the keyboard capitalised the first letter of a case-sensitive code, so valid codes were
 being rejected.
