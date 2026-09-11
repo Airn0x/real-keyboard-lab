@@ -80,6 +80,27 @@ A mismatch between `expected` and `value` is the point of the tool. In our own u
 form where the keyboard capitalised the first letter of a case-sensitive code, so valid codes were
 being rejected.
 
+## "But doesn't Appium already do this?"
+
+Appium's uiautomator2 driver documents `mobile: type` as emulating *"true typing like it was done
+from an on-screen keyboard"*. That sounds like the same thing. It is not.
+
+Tested against a real Gboard build on an emulator, typing `sai krithic` into an empty field:
+
+| | result |
+|---|---|
+| `mobile: type` | `sai krithic` |
+| tapping the keys (this tool) | `Sai krithic` |
+
+Gboard capitalises the first letter of an empty field. `mobile: type` returned success and produced
+lowercase, so it never reached the keyboard — it describes the *shape* of the events it sends, not
+their route. If you read that sentence and concluded your autocorrect behaviour was under test, it
+was not.
+
+`adb shell input text`, Espresso's `injectString`, Maestro's `inputText` and Appium's own
+`unicodeKeyboard` are all in the same category, and Appium's docs are candid about the last one:
+*"any business logic triggered by keyboard input will therefore not be tested."*
+
 ## Also here: `hydration_check.mjs`
 
 A different bug, found while building this, general to server-rendered React/Next.js:
