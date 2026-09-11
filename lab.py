@@ -493,14 +493,28 @@ class Lab:
                 self.dev.tap(*keys["delete"]); time.sleep(0.3)
                 self.dev.tap(*keys["shift"]); time.sleep(0.3)
                 self.dev.tap(*pos); time.sleep(0.3)
+        # Letters on the main layer are reliable; the symbol layer is not — one run
+        # produced '#' for '@' and quietly corrupted an email address. Verify every
+        # non-letter and repair it, because a wrong character here looks like an app
+        # bug when it is really ours. Letters stay unverified to keep typing quick.
+        elif not ch.isalpha():
+            got = (self.value() or "")[-1:]
+            if got and got != ch:
+                self.key_repairs = getattr(self, "key_repairs", []) + [{"wanted": ch, "got": got}]
+                self.dev.tap(*keys["delete"]); time.sleep(0.3)
+                self.dev.inject(ch); time.sleep(0.3)
+                return "injected"
         return True
 
     def type_text(self, s):
         typed = injected = ""
         for ch in s:
-            if self.tap_key(ch):
+            r = self.tap_key(ch)
+            if r == "injected":      # tapped, came out wrong, repaired by injection
+                injected += ch
+            elif r:
                 typed += ch
-            else:
+            else:                    # no key for it at all
                 self.dev.inject(ch)
                 injected += ch
         return typed, injected
@@ -545,6 +559,9 @@ class Lab:
             expected=text,
             value=got,
             matches=(got == text) if got is not None else None,
+            # our key map was wrong for these and we repaired them — lab
+            # inaccuracy, NOT a finding about the page
+            key_map_repairs=getattr(self, "key_repairs", []),
             shot=[focused, self.shot("typed")],
         )
         if got is not None and got != text:
