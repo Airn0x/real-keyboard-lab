@@ -1,0 +1,54 @@
+# Type into a page with the phone's real on-screen keyboard, on GitHub's free runners.
+# No device cloud, no account, no paid service.
+name: real-keyboard
+on:
+  workflow_dispatch:
+    inputs:
+      url:
+        description: Page to test (its first text field is used)
+        default: https://example.com/signup
+      text:
+        description: Text to type
+        default: ada lovelace
+jobs:
+  android:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    strategy:
+      fail-fast: false
+      matrix:
+        # google_apis_playstore ships Gboard. A plain google_apis image has the
+        # bare AOSP keyboard, which is not what your users type on.
+        include:
+          - { api: 33, profile: pixel_5, label: android13 }
+          - { api: 34, profile: pixel_6, label: android14 }
+    steps:
+      - uses: actions/checkout@v4
+      - name: Enable KVM
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+      - run: python3 -m pip install --quiet --break-system-packages pillow
+      - name: Emulator + type
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: ${{ matrix.api }}
+          target: google_apis_playstore
+          arch: x86_64
+          profile: ${{ matrix.profile }}
+          cores: 2
+          ram-size: 4096M
+          disable-animations: true
+          emulator-boot-timeout: 900
+          script: |
+            # Apps that pop over the browser or throw ANRs on a 2-core runner.
+            adb shell pm disable-user --user 0 com.android.vending || true
+            adb shell pm disable-user --user 0 com.google.android.youtube || true
+            python3 lab.py --url "${{ inputs.url }}" --text "${{ inputs.text }}" --out out/${{ matrix.label }}
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: ${{ matrix.label }}
+          path: out/
+          if-no-files-found: warn
